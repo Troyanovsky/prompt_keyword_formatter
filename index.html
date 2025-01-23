@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Formatter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        textarea.auto-expand {
+            min-height: 40px; /* Set a minimum height */
+            overflow-y: hidden; /* Hide vertical scrollbar initially */
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="container mx-auto p-4">
+        <h1 class="text-2xl font-bold mb-4">Prompt Formatter</h1>
+
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+                <label for="input" class="block mb-2">Input</label>
+                <textarea id="input" v-model="input" @input="handleInput" @keyup="handleKeyUp"
+                          class="w-full h-64 border border-gray-300 rounded p-2"></textarea>
+                <div v-if="showSuggestions" class="absolute z-10 bg-white border border-gray-300 rounded mt-1">
+                    <ul class="py-1">
+                        <li v-for="keyword in filteredKeywords" :key="keyword"
+                            @click="selectKeyword(keyword)"
+                            class="px-4 py-2 cursor-pointer hover:bg-gray-100">
+                            {{ keyword }}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div>
+                <label for="output" class="block mb-2">Output</label>
+                <textarea id="output" v-model="output"
+                          class="w-full h-64 border border-gray-300 rounded p-2" readonly></textarea>
+            </div>
+        </div>
+
+        <div class="flex items-center mb-4">
+            <input type="checkbox" id="formatXml" v-model="formatXml" class="mr-2">
+            <label for="formatXml">Format XML</label>
+        </div>
+
+        <div class="flex gap-4 mb-4">
+            <button @click="formatPrompt"
+                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Format Prompt
+            </button>
+            <button @click="copyOutput"
+                    class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                Copy Output
+            </button>
+        </div>
+
+        <h2 class="text-xl font-bold mb-2">Reserved Keywords</h2>
+
+        <div class="mb-4">
+            <table class="w-full border-collapse">
+                <thead>
+                <tr>
+                    <th class="border border-gray-300 p-2">Keyword</th>
+                    <th class="border border-gray-300 p-2">Replacement Text</th>
+                    <th class="border border-gray-300 p-2">Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="(item, index) in keywords" :key="index">
+                    <td class="border border-gray-300 p-2">
+                        <input type="text" v-model="item.keyword" @input="saveKeywords"
+                               class="w-full border border-gray-300 rounded p-1">
+                    </td>
+                    <td class="border border-gray-300 p-2">
+                        <textarea v-model="item.replacement" @input="onReplacementInput($event, index)"
+                                  class="w-full border border-gray-300 rounded p-1 auto-expand"></textarea>
+                    </td>
+                    <td class="border border-gray-300 p-2">
+                        <button @click="removeKeyword(index)"
+                                class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs">
+                            Remove
+                        </button>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+            <button @click="addKeyword"
+                    class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded mt-2 mr-2">
+                Add Keyword
+            </button>
+            <button @click="exportKeywords"
+                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mt-2 mr-2">
+                Export Keywords
+            </button>
+            <button @click="importKeywords"
+                    class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-1 px-2 rounded mt-2">
+                Import Keywords
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed } = Vue;
+
+        createApp({
+            setup() {
+                const input = ref('');
+                const output = ref('');
+                const formatXml = ref(false);
+                const keywords = ref([]);
+                const showSuggestions = ref(false);
+                const lastAtPos = ref(-1);
+
+                const loadKeywords = () => {
+                    const storedKeywords = localStorage.getItem('keywords');
+                    if (storedKeywords) {
+                        keywords.value = JSON.parse(storedKeywords);
+                    } else {
+                        keywords.value = [
+                            { keyword: "apple", replacement: "Apple Inc." },
+                            { keyword: "app", replacement: "Application" }
+                        ];
+                    }
+                };
+
+                const saveKeywords = () => {
+                    localStorage.setItem('keywords', JSON.stringify(keywords.value));
+                };
+
+                const addKeyword = () => {
+                    keywords.value.push({ keyword: '', replacement: '' });
+                };
+
+                const removeKeyword = (index) => {
+                    keywords.value.splice(index, 1);
+                    saveKeywords();
+                };
+
+                const formatPrompt = () => {
+                    let formatted = input.value;
+                    keywords.value.forEach(item => {
+                        const regex = new RegExp(`@${item.keyword}`, 'g');
+                        formatted = formatted.replace(regex, item.replacement);
+                    });
+                    output.value = formatted;
+                };
+
+                const copyOutput = () => {
+                    navigator.clipboard.writeText(output.value);
+                };
+
+                const handleInput = () => {
+                    const caretPos = document.getElementById('input').selectionStart;
+                    const textBeforeCaret = input.value.substring(0, caretPos);
+                    lastAtPos.value = textBeforeCaret.lastIndexOf('@');
+                
+                    if (lastAtPos.value !== -1) {
+                        const keywordStart = lastAtPos.value + 1;
+                        const currentWord = textBeforeCaret.substring(keywordStart, caretPos);
+                
+                        // Check for invalid characters in the current word
+                        if (/\s|@/.test(currentWord)) {
+                            showSuggestions.value = false;
+                            return;
+                        }
+                
+                        showSuggestions.value = true;
+                    } else {
+                        showSuggestions.value = false;
+                    }
+                };
+                const handleKeyUp = (event) => {
+                    console.log(event.key);
+                    if (formatXml.value && event.key === '>') {
+                        const caretPos = event.target.selectionStart;
+                        const textBeforeCaret = input.value.substring(0, caretPos);
+                        const lastOpeningTagIndex = textBeforeCaret.lastIndexOf('<');
+
+                        if (lastOpeningTagIndex !== -1 && textBeforeCaret.lastIndexOf('</') < lastOpeningTagIndex) {
+                            const tagContent = textBeforeCaret.substring(lastOpeningTagIndex + 1, caretPos - 1);
+                            const closingTag = `</${tagContent}>`;
+
+                            input.value = input.value.substring(0, caretPos) + closingTag + input.value.substring(caretPos);
+                            event.target.selectionStart = caretPos;
+                            event.target.selectionEnd = caretPos;
+                        }
+                    }
+                };
+
+                const filteredKeywords = computed(() => {
+                    if (lastAtPos.value === -1) return [];
+                    const caretPos = document.getElementById('input').selectionStart;
+                    const textBeforeCaret = input.value.substring(0, caretPos);
+                    const currentWord = textBeforeCaret.substring(lastAtPos.value + 1, caretPos);
+                    return keywords.value
+                        .filter(item => item.keyword.startsWith(currentWord))
+                        .map(item => item.keyword);
+                });
+
+                const selectKeyword = (keyword) => {
+                    const caretPos = document.getElementById('input').selectionStart;
+                    const textBeforeCaret = input.value.substring(0, lastAtPos.value);
+                    const textAfterCaret = input.value.substring(caretPos);
+
+                    input.value = textBeforeCaret + "@" + keyword + textAfterCaret;
+                    showSuggestions.value = false;
+                    document.getElementById('input').focus();
+                    document.getElementById('input').selectionStart = lastAtPos.value + keyword.length + 1;
+                    document.getElementById('input').selectionEnd = lastAtPos.value + keyword.length + 1;
+
+                };
+
+                const onReplacementInput = (event, index) => {
+                    saveKeywords();
+                    // Auto-expand the textarea
+                    event.target.style.height = 'auto';
+                    event.target.style.height = event.target.scrollHeight + 'px';
+                };
+
+                loadKeywords();
+
+                return {
+                    input,
+                    output,
+                    formatXml,
+                    keywords,
+                    showSuggestions,
+                    filteredKeywords,
+                    addKeyword,
+                    removeKeyword,
+                    formatPrompt,
+                    copyOutput,
+                    handleInput,
+                    handleKeyUp,
+                    selectKeyword,
+                    saveKeywords,
+                    onReplacementInput,
+                    exportKeywords,
+                    importKeywords
+                };
+
+                function exportKeywords() {
+                    const json = JSON.stringify(keywords.value, null, 2);
+                    download('keywords.json', json);
+                }
+
+                function importKeywords() {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'application/json';
+
+                    input.onchange = e => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            try {
+                                const importedKeywords = JSON.parse(event.target.result);
+                                if (Array.isArray(importedKeywords)) {
+                                    importedKeywords.forEach(importedItem => {
+                                        const existingIndex = keywords.value.findIndex(item => item.keyword === importedItem.keyword);
+                                        if (existingIndex !== -1) {
+                                            keywords.value[existingIndex].replacement = importedItem.replacement;
+                                        } else {
+                                            keywords.value.push(importedItem);
+                                        }
+                                    });
+                                    saveKeywords();
+                                } else {
+                                    alert('Invalid JSON format. Please upload a JSON file containing an array of keywords.');
+                                }
+                            } catch (error) {
+                                alert('Error parsing JSON file.');
+                            }
+                        };
+                        reader.readAsText(file);
+                    };
+                    input.click();
+                }
+            },
+            
+        }).mount('#app');
+
+        function download(filename, text) {
+            var element = document.createElement('a');
+            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+            element.setAttribute('download', filename);
+          
+            element.style.display = 'none';
+            document.body.appendChild(element);
+          
+            element.click();
+          
+            document.body.removeChild(element);
+          }
+    </script>
+</body>
+</html>
