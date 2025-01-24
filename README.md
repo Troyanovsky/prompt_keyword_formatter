@@ -57,6 +57,8 @@ A web-based tool that helps you manage and format text with customizable keyword
 
 ## Getting Started
 
+Visit https://troyanovsky.github.io/prompt_keyword_formatter/ OR
+
 1. Clone the repository:
 ```bash
 git clone https://github.com/Troyanovsky/prompt_keyword_formatter.git
