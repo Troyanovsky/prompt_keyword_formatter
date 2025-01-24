@@ -69,7 +69,7 @@
                 <tbody>
                 <tr v-for="(item, index) in keywords" :key="index">
                     <td class="border border-gray-300 p-2">
-                        <input type="text" v-model="item.keyword" @input="saveKeywords"
+                        <input type="text" v-model="item.keyword" @blur="validateKeyword($event, index)"
                                class="w-full border border-gray-300 rounded p-1">
                     </td>
                     <td class="border border-gray-300 p-2">
@@ -170,6 +170,7 @@
                         showSuggestions.value = false;
                     }
                 };
+
                 const handleKeyUp = (event) => {
                     console.log(event.key);
                     if (formatXml.value && event.key === '>') {
@@ -218,32 +219,29 @@
                     event.target.style.height = event.target.scrollHeight + 'px';
                 };
 
-                loadKeywords();
-
-                return {
-                    input,
-                    output,
-                    formatXml,
-                    keywords,
-                    showSuggestions,
-                    filteredKeywords,
-                    addKeyword,
-                    removeKeyword,
-                    formatPrompt,
-                    copyOutput,
-                    handleInput,
-                    handleKeyUp,
-                    selectKeyword,
-                    saveKeywords,
-                    onReplacementInput,
-                    exportKeywords,
-                    importKeywords
+                const validateKeyword = (event, index) => {
+                    const newKeyword = event.target.value;
+                    const isDuplicate = keywords.value.some((item, idx) => 
+                        idx !== index && item.keyword === newKeyword && newKeyword !== ''
+                    );
+                    
+                    if (isDuplicate) {
+                        alert('This keyword already exists!');
+                        // Revert the change
+                        event.target.value = keywords.value[index].keyword;
+                        return;
+                    }
+                    
+                    keywords.value[index].keyword = newKeyword;
+                    saveKeywords();
                 };
+
+                loadKeywords();
 
                 function exportKeywords() {
                     const json = JSON.stringify(keywords.value, null, 2);
                     download('keywords.json', json);
-                }
+                };
 
                 function importKeywords() {
                     const input = document.createElement('input');
@@ -278,7 +276,28 @@
                         reader.readAsText(file);
                     };
                     input.click();
-                }
+                };
+
+                return {
+                    input,
+                    output,
+                    formatXml,
+                    keywords,
+                    showSuggestions,
+                    filteredKeywords,
+                    addKeyword,
+                    removeKeyword,
+                    formatPrompt,
+                    copyOutput,
+                    handleInput,
+                    handleKeyUp,
+                    selectKeyword,
+                    validateKeyword,
+                    saveKeywords,
+                    onReplacementInput,
+                    exportKeywords,
+                    importKeywords
+                };
             },
             
         }).mount('#app');
