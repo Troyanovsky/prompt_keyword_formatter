@@ -194,7 +194,7 @@
                     const textBeforeCaret = input.value.substring(0, caretPos);
                     const currentWord = textBeforeCaret.substring(lastAtPos.value + 1, caretPos);
                     return keywords.value
-                        .filter(item => item.keyword.startsWith(currentWord))
+                        .filter(item => item.keyword.toLowerCase().includes(currentWord.toLowerCase()))
                         .map(item => item.keyword);
                 });
 
