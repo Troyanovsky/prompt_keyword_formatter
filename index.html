@@ -143,6 +143,68 @@
         <footer class="text-center text-gray-500 text-sm mt-8">
             Prompt Formatter - Format your prompts with custom keywords
         </footer>
+
+            <!-- Help Button and Dialog -->
+        <div class="fixed bottom-6 right-6 z-10">
+            <button @click="showHelpDialog = true" 
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-3 shadow-lg transition duration-150 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </button>
+        </div>
+
+        <div v-if="showHelpDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-indigo-700">How to Use Prompt Formatter</h2>
+                        <button @click="showHelpDialog = false" class="text-gray-500 hover:text-gray-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <h3 class="text-lg font-semibold text-indigo-600 mb-2">Basic Usage</h3>
+                            <p class="text-gray-700">Type your prompt in the input box. Use <span class="bg-gray-100 px-1 rounded">@keyword</span> to insert predefined text.</p>
+                            <div class="bg-gray-50 p-3 rounded-lg mt-2 text-sm">
+                                <strong>Example:</strong> "I need information about @apple products."<br>
+                                <strong>Result:</strong> "I need information about Apple Inc. products."
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-indigo-600 mb-2">Keyword Suggestions</h3>
+                            <p class="text-gray-700">As you type <span class="bg-gray-100 px-1 rounded">@</span> followed by text, matching keywords will appear. Click on a suggestion to insert it.</p>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-indigo-600 mb-2">Managing Keywords</h3>
+                            <p class="text-gray-700">Add, edit, or remove keywords in the table. Each keyword must be unique.</p>
+                            <ul class="list-disc pl-5 mt-2 text-gray-700">
+                                <li>Click "Add Keyword" to create a new entry</li>
+                                <li>Export your keywords to save them as a JSON file</li>
+                                <li>Import keywords from a previously exported JSON file</li>
+                            </ul>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-semibold text-indigo-600 mb-2">XML Formatting</h3>
+                            <p class="text-gray-700">Enable "Format XML" to automatically add closing tags when you type an opening XML tag.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-6 py-4 rounded-b-lg">
+                    <button @click="showHelpDialog = false" 
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-md shadow-sm transition duration-150">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -156,7 +218,7 @@
                 const keywords = ref([]);
                 const showSuggestions = ref(false);
                 const lastAtPos = ref(-1);
-
+                const showHelpDialog = ref(false);
                 const loadKeywords = () => {
                     const storedKeywords = localStorage.getItem('keywords');
                     if (storedKeywords) {
@@ -193,6 +255,20 @@
 
                 const copyOutput = () => {
                     navigator.clipboard.writeText(output.value);
+                    
+                    // Create and show a temporary notification
+                    const notification = document.createElement('div');
+                    notification.textContent = 'Copied to clipboard!';
+                    notification.className = 'fixed top-4 right-4 bg-emerald-600 text-white py-2 px-4 rounded-lg shadow-lg z-50 transition-opacity duration-300';
+                    document.body.appendChild(notification);
+                    
+                    // Remove the notification after 2 seconds
+                    setTimeout(() => {
+                        notification.style.opacity = '0';
+                        setTimeout(() => {
+                            document.body.removeChild(notification);
+                        }, 300);
+                    }, 1000);
                 };
 
                 const handleInput = () => {
@@ -341,7 +417,8 @@
                     saveKeywords,
                     onReplacementInput,
                     exportKeywords,
-                    importKeywords
+                    importKeywords,
+                    showHelpDialog
                 };
             },
             
